@@ -1,0 +1,61 @@
+{
+  "name": "Laudo de Inspeção Veicular",
+  "short_name": "Laudo Veicular",
+  "description": "Aplicação PWA para criação digital de laudos de inspeção veicular com funcionamento offline",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#1e3a8a",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%231e3a8a' width='192' height='192'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='80' fill='white' font-family='Arial'>🚗</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect fill='%231e3a8a' width='512' height='512'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='250' fill='white' font-family='Arial'>🚗</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 540 720'><rect fill='%23f3f4f6' width='540' height='720'/><rect fill='%231e3a8a' width='540' height='100'/><text x='270' y='50' text-anchor='middle' font-size='24' fill='white'>Laudo Veicular</text></svg>",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Novo Laudo",
+      "short_name": "Novo",
+      "description": "Criar um novo laudo de inspeção",
+      "url": "./index.html",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect fill='%231e3a8a' width='96' height='96'/><text x='48' y='48' text-anchor='middle' dominant-baseline='middle' font-size='50' fill='white'>📝</text></svg>",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Carregar Rascunho",
+      "short_name": "Rascunho",
+      "description": "Carregar um rascunho anteriormente salvo",
+      "url": "./index.html",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect fill='%231e3a8a' width='96' height='96'/><text x='48' y='48' text-anchor='middle' dominant-baseline='middle' font-size='50' fill='white'>📂</text></svg>",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "categories": ["productivity"],
+  "prefer_related_applications": false
+}
