@@ -358,13 +358,7 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
     // GEMINI API
     // ═══════════════════════════════════════
     async callGemini(prompt, images) {
-        const apiKey = CONFIG.GEMINI_API_KEY;
-        if (!apiKey || apiKey === 'COLE_SUA_CHAVE_AQUI') {
-            throw new Error('Configure sua chave da API Gemini no arquivo config.js');
-        }
-
-        const parts = [];
-        parts.push({ text: prompt });
+        const parts = [{ text: prompt }];
 
         images.forEach(img => {
             parts.push({
@@ -375,24 +369,21 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             });
         });
 
-        const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts }],
-                    generationConfig: {
-                        temperature: 0.1,
-                        maxOutputTokens: 2048
-                    }
-                })
-            }
-        );
+        const response = await fetch('/api/gemini', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts }],
+                generationConfig: {
+                    temperature: 0.1,
+                    maxOutputTokens: 2048
+                }
+            })
+        });
 
         if (!response.ok) {
             const err = await response.text();
-            throw new Error(`API Gemini erro ${response.status}: ${err}`);
+            throw new Error(`Erro na API: ${response.status} - ${err}`);
         }
 
         const json = await response.json();
