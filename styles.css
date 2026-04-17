@@ -708,6 +708,32 @@ body {
     line-height: 1.7;
 }
 
+.modal-box h3 {
+    font-size: 18px;
+    color: #fff;
+    margin-bottom: 10px;
+}
+
+.modal-box-error {
+    max-width: 560px;
+    text-align: left;
+}
+
+.modal-error-details {
+    max-height: 45vh;
+    overflow: auto;
+    margin: 0 0 20px;
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    background: rgba(0, 0, 0, 0.28);
+    color: #f8fafc;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
 .modal-close {
     padding: 12px 36px;
     background: var(--gradient-main);
@@ -756,6 +782,16 @@ body {
 
     .action-buttons {
         flex-direction: column;
+    }
+
+    .modal-box-error {
+        width: 94%;
+        padding: 24px 18px;
+    }
+
+    .modal-error-details {
+        max-height: 50vh;
+        font-size: 11px;
     }
 
     .action-buttons button {

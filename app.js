@@ -12,6 +12,7 @@ class LaudoApp {
     }
 
     init() {
+        this.setupGlobalErrorHandlers();
         this.setupEventListeners();
         this.setupSignatureCanvases();
         this.loadDraft();
@@ -82,6 +83,7 @@ class LaudoApp {
         try {
             const base64 = this.docProprietarioPhoto.split(',')[1];
             const mimeType = this.docProprietarioPhoto.split(';')[0].split(':')[1];
+            this.showMessage('Enviando foto para IA...', 'success');
 
             const prompt = `Analise esta foto de documento de identificação (RG, CNH ou similar) e extraia as informações.
 Retorne APENAS um JSON válido sem markdown, sem \`\`\`, neste formato exato:
@@ -89,12 +91,15 @@ Retorne APENAS um JSON válido sem markdown, sem \`\`\`, neste formato exato:
 Se não conseguir ler algum campo, coloque string vazia.`;
 
             const result = await this.callGemini(prompt, [{ base64, mimeType }]);
+            this.showMessage('Resposta da IA: ' + result, 'success');
             const data = this.parseJSON(result);
 
             this.proprietarioData = data;
             this.renderProprietarioFields(data);
+            this.showMessage('Dados extraídos com sucesso!', 'success');
         } catch (error) {
-            this.showMessage('Erro ao analisar documento: ' + error.message, 'error');
+            this.showErrorModal('Erro ao processar documento com IA', error);
+            this.showMessage('Erro: ' + error.message, 'error');
             btn.style.display = '';
         } finally {
             loading.classList.remove('active');
@@ -222,6 +227,7 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
                 this.renderChecklist(data.checklist);
             }
         } catch (error) {
+            this.showErrorModal('Erro ao analisar veículo com IA', error);
             this.showMessage('Erro ao analisar veículo: ' + error.message, 'error');
             btn.style.display = '';
         } finally {
@@ -358,6 +364,7 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
     // GEMINI API
     // ═══════════════════════════════════════
     async callGemini(prompt, images) {
+        const apiUrl = '/api/gemini';
         const parts = [{ text: prompt }];
 
         images.forEach(img => {
@@ -369,33 +376,141 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             });
         });
 
-        const response = await fetch('/api/gemini', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts }],
-                generationConfig: {
-                    temperature: 0.1,
-                    maxOutputTokens: 2048
-                }
-            })
-        });
-
-        if (!response.ok) {
-            const err = await response.text();
-            throw new Error(`Erro na API: ${response.status} - ${err}`);
+        let response;
+        try {
+            response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts }],
+                    generationConfig: {
+                        temperature: 0.1,
+                        maxOutputTokens: 2048
+                    }
+                })
+            });
+        } catch (networkErr) {
+            const msg = `Erro de rede ao chamar a IA.\n\nDetalhes: ${networkErr.message}`;
+            this.showErrorModal('Erro de rede na IA', {
+                message: msg,
+                stack: networkErr?.stack,
+                diagnostic: this.buildDiagnosticSnapshot({
+                    endpoint: apiUrl,
+                    online: navigator.onLine,
+                    userAgent: navigator.userAgent,
+                    imagensEnviadas: images.length,
+                    horario: new Date().toLocaleString('pt-BR')
+                })
+            });
+            throw new Error(msg);
         }
 
-        const json = await response.json();
+        if (!response.ok) {
+            let errBody = '';
+            try { errBody = await response.text(); } catch (_) {}
+            const msg = `Erro na API (HTTP ${response.status}):\n\n${errBody || 'Sem detalhes'}`;
+            this.showErrorModal('Erro HTTP na IA', {
+                message: msg,
+                diagnostic: this.buildDiagnosticSnapshot({
+                    endpoint: apiUrl,
+                    statusHttp: response.status,
+                    statusTexto: response.statusText,
+                    contentType: response.headers.get('content-type') || 'não informado',
+                    online: navigator.onLine,
+                    imagensEnviadas: images.length,
+                    horario: new Date().toLocaleString('pt-BR'),
+                    corpoResposta: errBody || 'Sem detalhes'
+                })
+            });
+            throw new Error(msg);
+        }
+
+        let json;
+        try {
+            json = await response.json();
+        } catch (parseErr) {
+            const msg = `Erro ao ler resposta da IA.\n\nDetalhes: ${parseErr.message}`;
+            this.showErrorModal('Erro ao interpretar resposta da IA', {
+                message: msg,
+                stack: parseErr?.stack,
+                diagnostic: this.buildDiagnosticSnapshot({
+                    endpoint: apiUrl,
+                    statusHttp: response.status,
+                    contentType: response.headers.get('content-type') || 'não informado',
+                    online: navigator.onLine,
+                    imagensEnviadas: images.length,
+                    horario: new Date().toLocaleString('pt-BR')
+                })
+            });
+            throw new Error(msg);
+        }
+
         const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text) throw new Error('Resposta vazia da IA');
+        if (!text) {
+            const msg = `Resposta vazia da IA.\n\nResposta completa:\n${JSON.stringify(json, null, 2)}`;
+            this.showErrorModal('Resposta vazia da IA', {
+                message: msg,
+                diagnostic: this.buildDiagnosticSnapshot({
+                    endpoint: apiUrl,
+                    statusHttp: response.status,
+                    online: navigator.onLine,
+                    imagensEnviadas: images.length,
+                    horario: new Date().toLocaleString('pt-BR'),
+                    respostaJson: JSON.stringify(json, null, 2)
+                })
+            });
+            throw new Error('Resposta vazia da IA');
+        }
         return text;
     }
 
     parseJSON(text) {
         // Remove markdown code fences se houver
         let clean = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-        return JSON.parse(clean);
+        try {
+            return JSON.parse(clean);
+        } catch (error) {
+            throw new Error(`A IA respondeu em um formato inválido.\nTrecho recebido: ${clean.slice(0, 1200)}`);
+        }
+    }
+
+    setupGlobalErrorHandlers() {
+        window.addEventListener('error', (event) => {
+            const details = event.error || new Error(event.message || 'Erro JavaScript desconhecido');
+            this.showErrorModal('Erro inesperado na tela', {
+                message: details.message,
+                stack: details.stack,
+                diagnostic: this.buildDiagnosticSnapshot({
+                    arquivo: event.filename || 'não informado',
+                    linha: event.lineno || 'não informado',
+                    coluna: event.colno || 'não informado',
+                    online: navigator.onLine,
+                    horario: new Date().toLocaleString('pt-BR')
+                })
+            });
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            const reason = event.reason instanceof Error
+                ? event.reason
+                : new Error(typeof event.reason === 'string' ? event.reason : JSON.stringify(event.reason, null, 2));
+            this.showErrorModal('Falha assíncrona não tratada', {
+                message: reason.message,
+                stack: reason.stack,
+                diagnostic: this.buildDiagnosticSnapshot({
+                    online: navigator.onLine,
+                    horario: new Date().toLocaleString('pt-BR'),
+                    origem: 'unhandledrejection'
+                })
+            });
+        });
+    }
+
+    buildDiagnosticSnapshot(details) {
+        return Object.entries(details)
+            .filter(([, value]) => value !== undefined && value !== null && value !== '')
+            .map(([label, value]) => `${label}: ${value}`)
+            .join('\n');
     }
 
     // ═══════════════════════════════════════
@@ -912,6 +1027,7 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             doc.save(filename);
             this.showMessage('PDF gerado com sucesso!', 'success');
         } catch (error) {
+            this.showErrorModal('Erro ao gerar PDF', error);
             this.showMessage('Erro ao gerar PDF: ' + error.message, 'error');
             console.error('PDF error:', error);
         }
@@ -938,6 +1054,47 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
         overlay.querySelector('.modal-close').addEventListener('click', () => overlay.remove());
         overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
         document.body.appendChild(overlay);
+    }
+
+    showErrorModal(title, error) {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+
+        const detailLines = [];
+        const message = error?.message || String(error || 'Erro desconhecido');
+        detailLines.push(message);
+
+        if (error?.diagnostic) {
+            detailLines.push('');
+            detailLines.push('Diagnóstico:');
+            detailLines.push(error.diagnostic);
+        }
+
+        if (error?.stack) {
+            detailLines.push('');
+            detailLines.push('Stack:');
+            detailLines.push(error.stack);
+        }
+
+        overlay.innerHTML = `<div class="modal-box modal-box-error">
+            <h3>${this.escapeHtml(title || 'Erro')}</h3>
+            <p>Ocorreu uma falha e os detalhes estão abaixo para diagnóstico no celular.</p>
+            <pre class="modal-error-details">${this.escapeHtml(detailLines.join('\n'))}</pre>
+            <button class="modal-close">Fechar</button>
+        </div>`;
+
+        overlay.querySelector('.modal-close').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        document.body.appendChild(overlay);
+    }
+
+    escapeHtml(text) {
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     showMessage(text, type) {
