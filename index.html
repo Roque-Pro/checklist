@@ -3,43 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Laudo de Inspeção Veicular">
-    <meta name="theme-color" content="#1e3a8a">
-    <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%231e3a8a' width='192' height='192'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='80' fill='white' font-family='Arial'>🚗</text></svg>">
+    <meta name="description" content="Laudo de Inspecao Veicular">
+    <meta name="theme-color" content="#0f1722">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%230f1722' width='192' height='192'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='82' fill='white' font-family='Arial'>🚗</text></svg>">
     <link rel="stylesheet" href="styles.css">
-    <title>Laudo de Inspeção Veicular</title>
+    <title>Laudo de Inspecao Veicular</title>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <header class="header">
             <div class="logo-area">
-                <div class="logo-placeholder">📷</div>
+                <div class="logo-placeholder">📸</div>
             </div>
             <div class="header-content">
-                <input type="text" id="companyName" class="company-name-input" placeholder="Nome da Empresa" value="Iguaçu Reboque">
-                <h1>Checklist Inteligente</h1>
+                <div class="header-eyebrow">Laudo veicular premium</div>
+                <input type="text" id="companyName" class="company-name-input" placeholder="Nome da Empresa" value="Iguacu Reboque">
+                <h1>Checklist inteligente para operacoes em campo</h1>
+                <p class="header-description">Capture imagens, analise com IA e gere um laudo elegante direto do celular, sem perder agilidade na rotina.</p>
+                <div class="header-meta">
+                    <span>Captura guiada</span>
+                    <span>IA aplicada</span>
+                    <span>PDF pronto</span>
+                </div>
             </div>
         </header>
 
-        <!-- Main Form -->
         <main class="form-container">
-
-            <!-- 1. Operador do Reboque -->
             <section class="form-section">
                 <h2>Operador do Reboque</h2>
                 <div class="form-field">
                     <label for="operador">Nome do Operador</label>
-                    <input type="text" id="operador" class="input-field" placeholder="Ex: João Silva">
+                    <input type="text" id="operador" class="input-field" placeholder="Ex: Joao Silva">
                 </div>
             </section>
 
-            <!-- 2. Dados do Proprietário -->
             <section class="form-section">
-                <h2>Dados do Proprietário <span class="ai-badge">IA</span></h2>
+                <h2>Dados do Proprietario <span class="ai-badge">IA</span></h2>
                 <div class="ai-capture-area">
                     <input type="file" id="photoDocProprietario" accept="image/*" capture="environment" style="display:none">
-                    <button type="button" id="btnFotoDocProprietario" class="btn-ai-capture">📷 Fotografar Documento</button>
+                    <button type="button" id="btnFotoDocProprietario" class="btn-ai-capture">📷 Fotografar documento</button>
                     <div id="previewDocProprietario" class="doc-preview"></div>
                     <button type="button" id="btnAnalisarProprietario" class="btn-ai-analyze" style="display:none">🤖 Processar com IA</button>
                     <div id="loadingProprietario" class="ai-loading">
@@ -48,14 +53,12 @@
                     </div>
                 </div>
                 <div id="proprietarioFields" class="dynamic-fields"></div>
-                <button type="button" id="manualProprietario" class="btn-manual">✏️ Preencher Manualmente</button>
+                <button type="button" id="manualProprietario" class="btn-manual">✏️ Preencher manualmente</button>
             </section>
 
-            <!-- 3. Dados do Veículo -->
             <section class="form-section">
-                <h2>Dados do Veículo <span class="ai-badge">IA</span></h2>
+                <h2>Dados do Veiculo <span class="ai-badge">IA</span></h2>
 
-                <!-- Fotos do veículo nas 4 orientações -->
                 <div class="car-visualization">
                     <div class="car-side">
                         <h3>Lateral Esquerda</h3>
@@ -95,24 +98,22 @@
                     </div>
                 </div>
 
-                <button type="button" id="btnAnalisarVeiculo" class="btn-ai-analyze btn-ai-analyze-full">🤖 Analisar Veículo com IA</button>
+                <button type="button" id="btnAnalisarVeiculo" class="btn-ai-analyze btn-ai-analyze-full">🤖 Analisar veiculo com IA</button>
                 <div id="loadingVeiculo" class="ai-loading">
                     <div class="ai-spinner"></div>
-                    <span>Analisando veículo...</span>
+                    <span>Analisando veiculo...</span>
                 </div>
 
                 <div id="vehicleFields" class="dynamic-fields"></div>
                 <div id="checklistContainer" class="dynamic-checklist"></div>
-                <button type="button" id="manualVeiculo" class="btn-manual">✏️ Preencher Manualmente</button>
+                <button type="button" id="manualVeiculo" class="btn-manual">✏️ Preencher manualmente</button>
             </section>
 
-            <!-- 4. Observações -->
             <section class="form-section">
-                <h2>Observações</h2>
-                <textarea id="observations" class="textarea-field" placeholder="Descreva qualquer anomalia, dano ou observação importante..."></textarea>
+                <h2>Observacoes</h2>
+                <textarea id="observations" class="textarea-field" placeholder="Descreva qualquer anomalia, dano ou observacao importante..."></textarea>
             </section>
 
-            <!-- 5. Assinaturas -->
             <section class="form-section">
                 <h2>Assinaturas</h2>
                 <div class="signatures-container">
@@ -122,17 +123,16 @@
                         <button type="button" id="clearSigOperador" class="btn-secondary">Limpar</button>
                     </div>
                     <div class="signature-box">
-                        <label>Proprietário do Veículo</label>
+                        <label>Proprietario do Veiculo</label>
                         <canvas id="sigProprietario" class="signature-canvas"></canvas>
                         <button type="button" id="clearSigProprietario" class="btn-secondary">Limpar</button>
                     </div>
                 </div>
             </section>
 
-            <!-- Action Buttons -->
             <section class="form-section action-buttons">
-                <button type="button" id="saveDraftBtn" class="btn-secondary">💾 Salvar Rascunho</button>
-                <button type="button" id="loadDraftBtn" class="btn-secondary">📂 Novo Laudo</button>
+                <button type="button" id="saveDraftBtn" class="btn-secondary">💾 Salvar rascunho</button>
+                <button type="button" id="loadDraftBtn" class="btn-secondary">📂 Novo laudo</button>
                 <button type="button" id="generatePdfBtn" class="btn-primary">📄 Gerar PDF</button>
             </section>
         </main>
