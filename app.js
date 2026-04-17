@@ -60,16 +60,22 @@ class LaudoApp {
     // ═══════════════════════════════════════
     // PROPRIETÁRIO - FOTO + IA
     // ═══════════════════════════════════════
-    handleDocProprietarioPhoto(e) {
+    async handleDocProprietarioPhoto(e) {
         const file = e.target.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            this.docProprietarioPhoto = ev.target.result;
-            document.getElementById('previewDocProprietario').innerHTML = `<img src="${ev.target.result}" alt="Documento">`;
+        try {
+            const optimizedPhoto = await this.prepareImageForUpload(file, {
+                maxWidth: 1600,
+                maxHeight: 1600,
+                quality: 0.78
+            });
+            this.docProprietarioPhoto = optimizedPhoto;
+            document.getElementById('previewDocProprietario').innerHTML = `<img src="${optimizedPhoto}" alt="Documento">`;
             document.getElementById('btnAnalisarProprietario').style.display = '';
-        };
-        reader.readAsDataURL(file);
+            this.showMessage('Documento otimizado para envio.', 'success');
+        } catch (error) {
+            this.showErrorModal('Erro ao preparar foto do documento', error);
+        }
         e.target.value = '';
     }
 
@@ -148,17 +154,22 @@ Se não conseguir ler algum campo, coloque string vazia.`;
     // ═══════════════════════════════════════
     // VEÍCULO - FOTOS + IA
     // ═══════════════════════════════════════
-    handleVehiclePhoto(e) {
+    async handleVehiclePhoto(e) {
         const file = e.target.files[0];
         if (!file) return;
         const side = e.target.dataset.side;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            this.sidePhotos[side] = ev.target.result;
+        try {
+            const optimizedPhoto = await this.prepareImageForUpload(file, {
+                maxWidth: 1600,
+                maxHeight: 1200,
+                quality: 0.72
+            });
+            this.sidePhotos[side] = optimizedPhoto;
             this.displayPhotoPreview(side);
             this.autoSave();
-        };
-        reader.readAsDataURL(file);
+        } catch (error) {
+            this.showErrorModal('Erro ao preparar foto do veículo', error);
+        }
         e.target.value = '';
     }
 
@@ -462,6 +473,69 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             throw new Error('Resposta vazia da IA');
         }
         return text;
+    }
+
+    async prepareImageForUpload(file, options = {}) {
+        const {
+            maxWidth = 1600,
+            maxHeight = 1600,
+            quality = 0.76,
+            outputType = 'image/jpeg'
+        } = options;
+
+        const dataUrl = await this.readFileAsDataURL(file);
+        return this.resizeDataUrlImage(dataUrl, { maxWidth, maxHeight, quality, outputType });
+    }
+
+    readFileAsDataURL(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error('Nao foi possivel ler a imagem selecionada.'));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    resizeDataUrlImage(dataUrl, options = {}) {
+        const {
+            maxWidth = 1600,
+            maxHeight = 1600,
+            quality = 0.76,
+            outputType = 'image/jpeg'
+        } = options;
+
+        return new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => {
+                let { width, height } = image;
+                const scale = Math.min(maxWidth / width, maxHeight / height, 1);
+                width = Math.max(1, Math.round(width * scale));
+                height = Math.max(1, Math.round(height * scale));
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    reject(new Error('Nao foi possivel inicializar a compressao da imagem.'));
+                    return;
+                }
+
+                ctx.drawImage(image, 0, 0, width, height);
+
+                let compressed = canvas.toDataURL(outputType, quality);
+
+                // Tenta reduzir mais se ainda ficar muito grande para a funcao serverless.
+                if (compressed.length > 900000) {
+                    compressed = canvas.toDataURL(outputType, Math.max(0.45, quality - 0.18));
+                }
+
+                resolve(compressed);
+            };
+            image.onerror = () => reject(new Error('Nao foi possivel processar a imagem selecionada.'));
+            image.src = dataUrl;
+        });
     }
 
     parseJSON(text) {
