@@ -2,7 +2,7 @@
 class LaudoApp {
     constructor() {
         this.sidePhotos = { left: null, right: null, front: null, back: null };
-        this.panelPhotos = { lights: null, full: null };
+        this.panelPhotos = { lights: null, full: null, trunk: null };
         this.docProprietarioPhoto = null;
         this.checklistStatus = {};
         this.checklistItems = [];
@@ -44,7 +44,11 @@ class LaudoApp {
         document.querySelectorAll('.btn-panel-photo').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const panel = e.target.dataset.panel;
-                const inputId = panel === 'lights' ? 'photoPanelLights' : 'photoPanelFull';
+                const inputId = {
+                    lights: 'photoPanelLights',
+                    full: 'photoPanelFull',
+                    trunk: 'photoTrunk'
+                }[panel];
                 document.getElementById(inputId).click();
             });
         });
@@ -215,7 +219,11 @@ Se não conseguir ler algum campo, coloque string vazia.`;
     }
 
     displayPanelPreview(panel) {
-        const previewId = panel === 'lights' ? 'photoPreviewPanelLights' : 'photoPreviewPanelFull';
+        const previewId = {
+            lights: 'photoPreviewPanelLights',
+            full: 'photoPreviewPanelFull',
+            trunk: 'photoPreviewTrunk'
+        }[panel];
         const preview = document.getElementById(previewId);
         if (!preview) return;
         if (this.panelPhotos[panel]) {
@@ -825,8 +833,8 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
         // Limpar veículo
         this.sidePhotos = { left: null, right: null, front: null, back: null };
         ['left', 'right', 'front', 'back'].forEach(side => this.displayPhotoPreview(side));
-        this.panelPhotos = { lights: null, full: null };
-        ['lights', 'full'].forEach(panel => this.displayPanelPreview(panel));
+        this.panelPhotos = { lights: null, full: null, trunk: null };
+        ['lights', 'full', 'trunk'].forEach(panel => this.displayPanelPreview(panel));
         document.getElementById('vehicleFields').innerHTML = '';
         document.getElementById('checklistContainer').innerHTML = '';
         document.getElementById('btnAnalisarVeiculo').style.display = 'none';
@@ -1082,7 +1090,7 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
                 y += 3;
             }
 
-            const panelLabels = { lights: 'LUZES E KILOMETRAGEM', full: 'PAINEL TOTAL' };
+            const panelLabels = { lights: 'LUZES E KILOMETRAGEM', full: 'PAINEL TOTAL', trunk: 'PORTA-MALAS' };
             const panelSides = Object.keys(data.panelPhotos || {}).filter(panel => data.panelPhotos[panel]);
             if (panelSides.length > 0) {
                 drawSectionTitle('PAINEL DO VEÍCULO');
