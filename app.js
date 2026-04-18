@@ -2,6 +2,7 @@
 class LaudoApp {
     constructor() {
         this.sidePhotos = { left: null, right: null, front: null, back: null };
+        this.panelPhotos = { lights: null, full: null };
         this.docProprietarioPhoto = null;
         this.checklistStatus = {};
         this.checklistItems = [];
@@ -39,6 +40,16 @@ class LaudoApp {
         });
         document.querySelectorAll('.photo-input').forEach(input => {
             input.addEventListener('change', (e) => this.handleVehiclePhoto(e));
+        });
+        document.querySelectorAll('.btn-panel-photo').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const panel = e.target.dataset.panel;
+                const inputId = panel === 'lights' ? 'photoPanelLights' : 'photoPanelFull';
+                document.getElementById(inputId).click();
+            });
+        });
+        document.querySelectorAll('.panel-photo-input').forEach(input => {
+            input.addEventListener('change', (e) => this.handlePanelPhoto(e));
         });
         document.getElementById('btnAnalisarVeiculo').addEventListener('click', () => this.analyzeVehicle());
         document.getElementById('manualVeiculo').addEventListener('click', () => this.showManualVehicle());
@@ -173,12 +184,42 @@ Se não conseguir ler algum campo, coloque string vazia.`;
         e.target.value = '';
     }
 
+    async handlePanelPhoto(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const panel = e.target.dataset.panel;
+        try {
+            const optimizedPhoto = await this.prepareImageForUpload(file, {
+                maxWidth: 1600,
+                maxHeight: 1200,
+                quality: 0.72
+            });
+            this.panelPhotos[panel] = optimizedPhoto;
+            this.displayPanelPreview(panel);
+            this.autoSave();
+        } catch (error) {
+            this.showErrorModal('Erro ao preparar foto do painel', error);
+        }
+        e.target.value = '';
+    }
+
     displayPhotoPreview(side) {
         const previewId = `photoPreview${side.charAt(0).toUpperCase() + side.slice(1)}`;
         const preview = document.getElementById(previewId);
         if (!preview) return;
         if (this.sidePhotos[side]) {
             preview.innerHTML = `<img src="${this.sidePhotos[side]}" alt="Foto ${side}">`;
+        } else {
+            preview.innerHTML = '';
+        }
+    }
+
+    displayPanelPreview(panel) {
+        const previewId = panel === 'lights' ? 'photoPreviewPanelLights' : 'photoPreviewPanelFull';
+        const preview = document.getElementById(previewId);
+        if (!preview) return;
+        if (this.panelPhotos[panel]) {
+            preview.innerHTML = `<img src="${this.panelPhotos[panel]}" alt="Painel ${panel}">`;
         } else {
             preview.innerHTML = '';
         }
@@ -680,6 +721,7 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             checklistItems: this.checklistItems,
             checklistStatus: this.checklistStatus,
             sidePhotos: this.sidePhotos,
+            panelPhotos: this.panelPhotos,
             docProprietarioPhoto: this.docProprietarioPhoto,
             signatures: {
                 operador: document.getElementById('sigOperador').toDataURL(),
@@ -759,6 +801,10 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
                     document.getElementById('btnAnalisarVeiculo').style.display = '';
                 }
             }
+            if (data.panelPhotos) {
+                this.panelPhotos = data.panelPhotos;
+                Object.keys(this.panelPhotos).forEach(panel => this.displayPanelPreview(panel));
+            }
         } catch (error) {
             console.error('Erro ao carregar draft:', error);
         }
@@ -779,6 +825,8 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
         // Limpar veículo
         this.sidePhotos = { left: null, right: null, front: null, back: null };
         ['left', 'right', 'front', 'back'].forEach(side => this.displayPhotoPreview(side));
+        this.panelPhotos = { lights: null, full: null };
+        ['lights', 'full'].forEach(panel => this.displayPanelPreview(panel));
         document.getElementById('vehicleFields').innerHTML = '';
         document.getElementById('checklistContainer').innerHTML = '';
         document.getElementById('btnAnalisarVeiculo').style.display = 'none';
@@ -1031,6 +1079,41 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
                     } catch (e) { console.error('Erro foto:', e); }
                 });
                 if (photosInRow > 0) y += photoHeight + 12;
+                y += 3;
+            }
+
+            const panelLabels = { lights: 'LUZES E KILOMETRAGEM', full: 'PAINEL TOTAL' };
+            const panelSides = Object.keys(data.panelPhotos || {}).filter(panel => data.panelPhotos[panel]);
+            if (panelSides.length > 0) {
+                drawSectionTitle('PAINEL DO VEÍCULO');
+                const panelWidth = (contentWidth - 6) / 2;
+                const panelHeight = 55;
+                let panelsInRow = 0;
+                let panelX = margin;
+
+                panelSides.forEach(panel => {
+                    checkPage(panelHeight + 15);
+                    try {
+                        doc.setDrawColor(...cinzaBorda);
+                        doc.setLineWidth(0.5);
+                        doc.roundedRect(panelX, y, panelWidth, panelHeight + 8, 2, 2, 'S');
+                        doc.setFillColor(...azulEscuro);
+                        doc.roundedRect(panelX + 2, y + 1, panelWidth - 4, 6, 1, 1, 'F');
+                        doc.setTextColor(...branco);
+                        doc.setFontSize(7);
+                        doc.setFont('helvetica', 'bold');
+                        doc.text(panelLabels[panel], panelX + 4, y + 5);
+                        doc.addImage(data.panelPhotos[panel], 'JPEG', panelX + 2, y + 9, panelWidth - 4, panelHeight - 2);
+                        panelX += panelWidth + 6;
+                        panelsInRow++;
+                        if (panelsInRow >= 2) {
+                            y += panelHeight + 12;
+                            panelX = margin;
+                            panelsInRow = 0;
+                        }
+                    } catch (e) { console.error('Erro painel:', e); }
+                });
+                if (panelsInRow > 0) y += panelHeight + 12;
                 y += 3;
             }
 

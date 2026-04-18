@@ -90,6 +90,25 @@
                     </div>
                 </div>
 
+                <div class="panel-visualization">
+                    <div class="car-side">
+                        <h3>Luzes e Kilometragem</h3>
+                        <div class="photo-upload">
+                            <input type="file" id="photoPanelLights" accept="image/*" capture="environment" class="panel-photo-input" data-panel="lights" style="display:none">
+                            <button type="button" class="btn-photo btn-panel-photo" data-panel="lights">📷 Foto do painel</button>
+                            <div id="photoPreviewPanelLights" class="photo-preview"></div>
+                        </div>
+                    </div>
+                    <div class="car-side">
+                        <h3>Painel Total</h3>
+                        <div class="photo-upload">
+                            <input type="file" id="photoPanelFull" accept="image/*" capture="environment" class="panel-photo-input" data-panel="full" style="display:none">
+                            <button type="button" class="btn-photo btn-panel-photo" data-panel="full">📷 Foto do painel</button>
+                            <div id="photoPreviewPanelFull" class="photo-preview"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <button type="button" id="btnAnalisarVeiculo" class="btn-ai-analyze btn-ai-analyze-full">🤖 Analisar veiculo com IA</button>
                 <div id="loadingVeiculo" class="ai-loading">
                     <div class="ai-spinner"></div>
