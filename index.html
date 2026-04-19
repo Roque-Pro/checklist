@@ -16,10 +16,12 @@
     <div class="container">
         <header class="header">
             <div class="logo-area">
-                <div class="logo-placeholder">📸</div>
+                <img src="img/logo.jpeg" alt="Logo da Empresa" class="header-logo">
             </div>
             <div class="header-content">
+                <span class="header-eyebrow">Laudo de Inspeção</span>
                 <input type="text" id="companyName" class="company-name-input" placeholder="Nome da Empresa" value="Iguacu Reboque">
+                <p class="header-description">Inspeção veicular completa com registro fotográfico e análise por IA</p>
             </div>
         </header>
 
@@ -90,6 +92,19 @@
                     </div>
                 </div>
 
+                <button type="button" id="btnAnalisarVeiculo" class="btn-ai-analyze btn-ai-analyze-full">🤖 Analisar veiculo com IA</button>
+                <div id="loadingVeiculo" class="ai-loading">
+                    <div class="ai-spinner"></div>
+                    <span>Analisando veiculo...</span>
+                </div>
+
+                <div id="vehicleFields" class="dynamic-fields"></div>
+                <div id="checklistContainer" class="dynamic-checklist"></div>
+                <button type="button" id="manualVeiculo" class="btn-manual">✏️ Preencher manualmente</button>
+
+                <div class="section-divider"></div>
+
+                <h3 class="sub-section-title">Painel e Compartimentos</h3>
                 <div class="panel-visualization">
                     <div class="car-side">
                         <h3>Luzes e Kilometragem</h3>
@@ -117,15 +132,12 @@
                     </div>
                 </div>
 
-                <button type="button" id="btnAnalisarVeiculo" class="btn-ai-analyze btn-ai-analyze-full">🤖 Analisar veiculo com IA</button>
-                <div id="loadingVeiculo" class="ai-loading">
-                    <div class="ai-spinner"></div>
-                    <span>Analisando veiculo...</span>
-                </div>
+                <div class="section-divider"></div>
 
-                <div id="vehicleFields" class="dynamic-fields"></div>
-                <div id="checklistContainer" class="dynamic-checklist"></div>
-                <button type="button" id="manualVeiculo" class="btn-manual">✏️ Preencher manualmente</button>
+                <h3 class="sub-section-title">Fotos Adicionais</h3>
+                <div id="extraPhotosContainer" class="extra-photos-grid"></div>
+                <input type="file" id="extraPhotoInput" accept="image/*" capture="environment" style="display:none">
+                <button type="button" id="btnAddExtraPhoto" class="btn-photo btn-add-extra">➕ Adicionar foto</button>
             </section>
 
             <section class="form-section">

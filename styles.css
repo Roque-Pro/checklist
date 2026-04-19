@@ -80,9 +80,7 @@ body::after {
     padding: 34px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 32px;
-    background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.06), transparent 48%),
-        linear-gradient(180deg, rgba(18, 33, 48, 0.95), rgba(7, 17, 27, 0.92));
+    background: #2E3393;
     box-shadow: var(--shadow-lg);
     position: relative;
     overflow: hidden;
@@ -93,9 +91,7 @@ body::after {
     content: "";
     position: absolute;
     inset: 0;
-    background:
-        radial-gradient(circle at top right, rgba(244, 170, 84, 0.18), transparent 30%),
-        radial-gradient(circle at bottom left, rgba(114, 213, 200, 0.16), transparent 28%);
+    background: transparent;
     z-index: -1;
 }
 
@@ -114,20 +110,14 @@ body::after {
     justify-content: center;
 }
 
-.logo-placeholder {
+.header-logo {
     width: 88px;
     height: 88px;
-    border-radius: 26px;
-    display: grid;
-    place-items: center;
-    font-size: 36px;
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03)),
-        rgba(11, 23, 35, 0.78);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.09),
-        0 18px 40px rgba(0, 0, 0, 0.28);
+    border-radius: 16px;
+    object-fit: cover;
+    background: #2E3393;
+    border: none;
+    box-shadow: none;
 }
 
 .header-content {
@@ -151,14 +141,15 @@ body::after {
 
 .company-name-input {
     width: 100%;
-    padding: 0 0 14px;
-    background: transparent;
-    border: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 10px 16px;
+    background: var(--bg-input);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
     color: var(--text);
-    font: 800 16px/1.2 "Space Grotesk", sans-serif;
-    letter-spacing: 0.08em;
+    font: 800 22px/1.2 "Space Grotesk", sans-serif;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .company-name-input::placeholder {
@@ -167,7 +158,8 @@ body::after {
 
 .company-name-input:focus {
     outline: none;
-    border-bottom-color: rgba(244, 170, 84, 0.52);
+    border-color: rgba(244, 170, 84, 0.52);
+    box-shadow: 0 0 16px rgba(244, 170, 84, 0.12);
 }
 
 .header h1 {
@@ -252,6 +244,82 @@ body::after {
     font: 700 1.02rem/1.2 "Space Grotesk", sans-serif;
     letter-spacing: 0.05em;
     text-transform: uppercase;
+}
+
+.section-divider {
+    margin: 28px 0;
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sub-section-title {
+    position: relative;
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+    font: 600 0.9rem/1.2 "Space Grotesk", sans-serif;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border-bottom: 1px solid rgba(244, 170, 84, 0.18);
+}
+
+.extra-photos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.extra-photo-item {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--bg-input);
+    aspect-ratio: 4/3;
+}
+
+.extra-photo-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.extra-photo-remove {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(240, 98, 110, 0.85);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: background 0.2s ease;
+}
+
+.extra-photo-remove:hover {
+    background: var(--danger);
+}
+
+.btn-add-extra {
+    width: 100%;
+    margin-top: 4px;
+    border: 2px dashed rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-soft);
+    transition: border-color 0.3s ease, background 0.3s ease;
+}
+
+.btn-add-extra:hover {
+    border-color: rgba(244, 170, 84, 0.35);
+    background: rgba(244, 170, 84, 0.06);
+    color: var(--accent);
 }
 
 .form-group,
@@ -838,11 +906,10 @@ body::after {
         border-radius: 24px;
     }
 
-    .logo-placeholder {
+    .header-logo {
         width: 72px;
         height: 72px;
         border-radius: 22px;
-        font-size: 30px;
     }
 
     .header-description {

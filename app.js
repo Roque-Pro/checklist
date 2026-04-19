@@ -3,6 +3,7 @@ class LaudoApp {
     constructor() {
         this.sidePhotos = { left: null, right: null, front: null, back: null };
         this.panelPhotos = { lights: null, full: null, trunk: null };
+        this.extraPhotos = [];
         this.docProprietarioPhoto = null;
         this.checklistStatus = {};
         this.checklistItems = [];
@@ -66,6 +67,12 @@ class LaudoApp {
         });
         document.getElementById('btnAnalisarVeiculo').addEventListener('click', () => this.analyzeVehicle());
         document.getElementById('manualVeiculo').addEventListener('click', () => this.showManualVehicle());
+
+        // Fotos extras
+        document.getElementById('btnAddExtraPhoto').addEventListener('click', () => {
+            document.getElementById('extraPhotoInput').click();
+        });
+        document.getElementById('extraPhotoInput').addEventListener('change', (e) => this.handleExtraPhoto(e));
 
         // Ação
         document.getElementById('saveDraftBtn').addEventListener('click', () => this.saveDraft());
@@ -248,6 +255,49 @@ Se não conseguir ler algum campo, coloque string vazia.`;
         } else {
             preview.innerHTML = '';
         }
+    }
+
+    async handleExtraPhoto(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+            const optimizedPhoto = await this.prepareImageForUpload(file, {
+                maxWidth: 1280,
+                maxHeight: 960,
+                quality: 0.62,
+                minQuality: 0.4,
+                targetMaxBytes: 260000,
+                maxAttempts: 6,
+                scaleStep: 0.86
+            });
+            this.extraPhotos.push(optimizedPhoto);
+            this.renderExtraPhotos();
+            this.autoSave();
+        } catch (error) {
+            this.showErrorModal('Erro ao preparar foto extra', error);
+        }
+        e.target.value = '';
+    }
+
+    renderExtraPhotos() {
+        const container = document.getElementById('extraPhotosContainer');
+        container.innerHTML = '';
+        this.extraPhotos.forEach((photo, index) => {
+            const item = document.createElement('div');
+            item.className = 'extra-photo-item';
+            item.innerHTML = `
+                <img src="${photo}" alt="Foto extra ${index + 1}">
+                <button type="button" class="extra-photo-remove" data-index="${index}">✕</button>
+            `;
+            item.querySelector('.extra-photo-remove').addEventListener('click', () => this.removeExtraPhoto(index));
+            container.appendChild(item);
+        });
+    }
+
+    removeExtraPhoto(index) {
+        this.extraPhotos.splice(index, 1);
+        this.renderExtraPhotos();
+        this.autoSave();
     }
 
     async analyzeVehicle() {
@@ -817,6 +867,7 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             checklistStatus: this.checklistStatus,
             sidePhotos: this.sidePhotos,
             panelPhotos: this.panelPhotos,
+            extraPhotos: this.extraPhotos,
             docProprietarioPhoto: this.docProprietarioPhoto,
             signatures: {
                 operador: document.getElementById('sigOperador').toDataURL(),
@@ -900,6 +951,12 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
                 this.panelPhotos = data.panelPhotos;
                 Object.keys(this.panelPhotos).forEach(panel => this.displayPanelPreview(panel));
             }
+
+            // Fotos extras
+            if (data.extraPhotos && data.extraPhotos.length > 0) {
+                this.extraPhotos = data.extraPhotos;
+                this.renderExtraPhotos();
+            }
         } catch (error) {
             console.error('Erro ao carregar draft:', error);
         }
@@ -922,6 +979,8 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
         ['left', 'right', 'front', 'back'].forEach(side => this.displayPhotoPreview(side));
         this.panelPhotos = { lights: null, full: null, trunk: null };
         ['lights', 'full', 'trunk'].forEach(panel => this.displayPanelPreview(panel));
+        this.extraPhotos = [];
+        this.renderExtraPhotos();
         document.getElementById('vehicleFields').innerHTML = '';
         document.getElementById('checklistContainer').innerHTML = '';
         document.getElementById('btnAnalisarVeiculo').style.display = 'none';
@@ -1209,6 +1268,41 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
                     } catch (e) { console.error('Erro painel:', e); }
                 });
                 if (panelsInRow > 0) y += panelHeight + 12;
+                y += 3;
+            }
+
+            // FOTOS EXTRAS
+            const extras = data.extraPhotos || [];
+            if (extras.length > 0) {
+                drawSectionTitle('FOTOS ADICIONAIS');
+                const extraWidth = (contentWidth - 6) / 2;
+                const extraHeight = 55;
+                let extrasInRow = 0;
+                let extraX = margin;
+
+                extras.forEach((photo, i) => {
+                    checkPage(extraHeight + 15);
+                    try {
+                        doc.setDrawColor(...cinzaBorda);
+                        doc.setLineWidth(0.5);
+                        doc.roundedRect(extraX, y, extraWidth, extraHeight + 8, 2, 2, 'S');
+                        doc.setFillColor(...azulEscuro);
+                        doc.roundedRect(extraX + 2, y + 1, extraWidth - 4, 6, 1, 1, 'F');
+                        doc.setTextColor(...branco);
+                        doc.setFontSize(7);
+                        doc.setFont('helvetica', 'bold');
+                        doc.text(`FOTO ${i + 1}`, extraX + 4, y + 5);
+                        doc.addImage(photo, 'JPEG', extraX + 2, y + 9, extraWidth - 4, extraHeight - 2);
+                        extraX += extraWidth + 6;
+                        extrasInRow++;
+                        if (extrasInRow >= 2) {
+                            y += extraHeight + 12;
+                            extraX = margin;
+                            extrasInRow = 0;
+                        }
+                    } catch (e) { console.error('Erro foto extra:', e); }
+                });
+                if (extrasInRow > 0) y += extraHeight + 12;
                 y += 3;
             }
 
