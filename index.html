@@ -26,7 +26,7 @@
             <div class="header-content">
                 <input type="text" id="companyName" class="company-name-input" placeholder="Nome da Empresa" value="Iguacu Reboque">
             </div>
-            <button type="button" id="btnInstall" class="btn-install" style="display:none">📲 Instalar App</button>
+            <button type="button" id="btnInstall" class="btn-install">📲 Instalar App</button>
         </header>
 
         <main class="form-container">
@@ -180,39 +180,41 @@
         }
         let deferredPrompt;
         const btnInstall = document.getElementById('btnInstall');
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
 
-        if (isIOS && !isStandalone) {
-            btnInstall.style.display = '';
-            btnInstall.addEventListener('click', () => {
-                const overlay = document.createElement('div');
-                overlay.className = 'modal-overlay';
-                overlay.innerHTML = `<div class="modal-box">
-                    <h3>Instalar no iPhone</h3>
-                    <p>1. Toque no botão <strong>Compartilhar</strong> (ícone ⬆️) na barra do Safari<br><br>
-                    2. Role para baixo e toque em <strong>"Adicionar à Tela de Início"</strong><br><br>
-                    3. Toque em <strong>"Adicionar"</strong></p>
-                    <button class="modal-close">Entendi</button>
-                </div>`;
-                overlay.querySelector('.modal-close').addEventListener('click', () => overlay.remove());
-                overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-                document.body.appendChild(overlay);
-            });
+        if (isStandalone) {
+            btnInstall.style.display = 'none';
         }
 
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            btnInstall.style.display = '';
         });
+
         btnInstall.addEventListener('click', async () => {
-            if (!deferredPrompt) return;
-            deferredPrompt.prompt();
-            await deferredPrompt.userChoice;
-            deferredPrompt = null;
-            btnInstall.style.display = 'none';
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                await deferredPrompt.userChoice;
+                deferredPrompt = null;
+                btnInstall.style.display = 'none';
+            } else {
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                const overlay = document.createElement('div');
+                overlay.className = 'modal-overlay';
+                overlay.innerHTML = `<div class="modal-box">
+                    <h3>Instalar App</h3>
+                    <p>${isIOS
+                        ? '1. Toque no botão <strong>Compartilhar</strong> (ícone ⬆️) na barra do Safari<br><br>2. Role para baixo e toque em <strong>"Adicionar à Tela de Início"</strong><br><br>3. Toque em <strong>"Adicionar"</strong>'
+                        : '1. Toque no menu <strong>⋮</strong> (três pontinhos) do navegador<br><br>2. Toque em <strong>"Instalar aplicativo"</strong> ou <strong>"Adicionar à tela inicial"</strong>'
+                    }</p>
+                    <button class="modal-close">Entendi</button>
+                </div>`;
+                overlay.querySelector('.modal-close').addEventListener('click', () => overlay.remove());
+                overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+                document.body.appendChild(overlay);
+            }
         });
+
         window.addEventListener('appinstalled', () => {
             btnInstall.style.display = 'none';
         });
