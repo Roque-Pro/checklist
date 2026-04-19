@@ -179,20 +179,42 @@
             navigator.serviceWorker.register('sw.js');
         }
         let deferredPrompt;
+        const btnInstall = document.getElementById('btnInstall');
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+
+        if (isIOS && !isStandalone) {
+            btnInstall.style.display = '';
+            btnInstall.addEventListener('click', () => {
+                const overlay = document.createElement('div');
+                overlay.className = 'modal-overlay';
+                overlay.innerHTML = `<div class="modal-box">
+                    <h3>Instalar no iPhone</h3>
+                    <p>1. Toque no botão <strong>Compartilhar</strong> (ícone ⬆️) na barra do Safari<br><br>
+                    2. Role para baixo e toque em <strong>"Adicionar à Tela de Início"</strong><br><br>
+                    3. Toque em <strong>"Adicionar"</strong></p>
+                    <button class="modal-close">Entendi</button>
+                </div>`;
+                overlay.querySelector('.modal-close').addEventListener('click', () => overlay.remove());
+                overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+                document.body.appendChild(overlay);
+            });
+        }
+
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            document.getElementById('btnInstall').style.display = '';
+            btnInstall.style.display = '';
         });
-        document.getElementById('btnInstall').addEventListener('click', async () => {
+        btnInstall.addEventListener('click', async () => {
             if (!deferredPrompt) return;
             deferredPrompt.prompt();
             await deferredPrompt.userChoice;
             deferredPrompt = null;
-            document.getElementById('btnInstall').style.display = 'none';
+            btnInstall.style.display = 'none';
         });
         window.addEventListener('appinstalled', () => {
-            document.getElementById('btnInstall').style.display = 'none';
+            btnInstall.style.display = 'none';
         });
     </script>
 </body>
