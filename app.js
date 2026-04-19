@@ -1087,21 +1087,36 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             };
 
             // HEADER
-            doc.setFillColor(...azulEscuro);
-            doc.rect(0, 0, pageWidth, 36, 'F');
+            doc.setFillColor(46, 51, 147);
+            doc.rect(0, 0, pageWidth, 42, 'F');
             doc.setFillColor(220, 38, 38);
-            doc.rect(0, 36, pageWidth, 3, 'F');
+            doc.rect(0, 42, pageWidth, 3, 'F');
+
+            // Logo no PDF
+            const logoImg = document.querySelector('.header-logo');
+            if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
+                try {
+                    const logoCanvas = document.createElement('canvas');
+                    logoCanvas.width = logoImg.naturalWidth;
+                    logoCanvas.height = logoImg.naturalHeight;
+                    const logoCtx = logoCanvas.getContext('2d');
+                    logoCtx.drawImage(logoImg, 0, 0);
+                    const logoData = logoCanvas.toDataURL('image/jpeg', 0.9);
+                    const logoRatio = logoImg.naturalWidth / logoImg.naturalHeight;
+                    const logoH = 22;
+                    const logoW = logoH * logoRatio;
+                    doc.addImage(logoData, 'JPEG', margin, 5, logoW, logoH);
+                } catch (e) { console.error('Erro ao inserir logo no PDF:', e); }
+            }
+
             doc.setTextColor(...branco);
-            doc.setFontSize(20);
+            doc.setFontSize(11);
             doc.setFont('helvetica', 'bold');
-            doc.text(data.companyName || 'IGUAÇU REBOQUE', margin, 16);
-            doc.setFontSize(13);
-            doc.setFont('helvetica', 'normal');
-            doc.text('LAUDO DE INSPEÇÃO VEICULAR', margin, 25);
+            doc.text(data.companyName || 'IGUAÇU REBOQUE', margin, 34);
             doc.setFontSize(9);
             doc.setFont('helvetica', 'italic');
-            doc.text(timestamp, margin + contentWidth - doc.getTextWidth(timestamp), 32);
-            y = 46;
+            doc.text(timestamp, margin + contentWidth - doc.getTextWidth(timestamp), 38);
+            y = 52;
 
             // OPERADOR
             drawSectionTitle('OPERADOR DO REBOQUE');
