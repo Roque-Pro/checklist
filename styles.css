@@ -112,10 +112,10 @@ body::after {
 }
 
 .header-logo {
-    width: 100%;
-    max-width: 400px;
-    height: auto;
-    object-fit: contain;
+    width: 80px;
+    height: 80px;
+    border-radius: 10px;
+    object-fit: cover;
     background: #2E3393;
     border: none;
     box-shadow: none;
@@ -911,7 +911,8 @@ body::after {
     }
 
     .header-logo {
-        max-width: 280px;
+        width: 64px;
+        height: 64px;
     }
 
     .header-description {
