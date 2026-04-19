@@ -19,6 +19,11 @@ class LaudoApp {
         this.loadDraft();
     }
 
+    capitalizeKey(value) {
+        if (typeof value !== 'string' || !value) return '';
+        return value.charAt(0).toUpperCase() + value.slice(1);
+    }
+
     // ═══════════════════════════════════════
     // EVENT LISTENERS
     // ═══════════════════════════════════════
@@ -32,10 +37,12 @@ class LaudoApp {
         document.getElementById('manualProprietario').addEventListener('click', () => this.showManualProprietario());
 
         // Fotos do veículo
-        document.querySelectorAll('.btn-photo').forEach(btn => {
+        document.querySelectorAll('.btn-photo[data-side]').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const side = e.target.dataset.side;
-                document.getElementById(`photo${side.charAt(0).toUpperCase() + side.slice(1)}`).click();
+                const side = e.currentTarget.dataset.side;
+                if (!side) return;
+                const input = document.getElementById(`photo${this.capitalizeKey(side)}`);
+                if (input) input.click();
             });
         });
         document.querySelectorAll('.photo-input').forEach(input => {
@@ -43,13 +50,15 @@ class LaudoApp {
         });
         document.querySelectorAll('.btn-panel-photo').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const panel = e.target.dataset.panel;
+                const panel = e.currentTarget.dataset.panel;
+                if (!panel) return;
                 const inputId = {
                     lights: 'photoPanelLights',
                     full: 'photoPanelFull',
                     trunk: 'photoTrunk'
                 }[panel];
-                document.getElementById(inputId).click();
+                const input = document.getElementById(inputId);
+                if (input) input.click();
             });
         });
         document.querySelectorAll('.panel-photo-input').forEach(input => {
@@ -113,7 +122,7 @@ Se não conseguir ler algum campo, coloque string vazia.`;
 
             const result = await this.callGemini(prompt, [{ base64, mimeType }]);
             this.showMessage('Resposta da IA: ' + result, 'success');
-            const data = this.parseJSON(result);
+            const data = this.normalizeVehicleData(this.parseJSON(result));
 
             this.proprietarioData = data;
             this.renderProprietarioFields(data);
@@ -175,9 +184,13 @@ Se não conseguir ler algum campo, coloque string vazia.`;
         const side = e.target.dataset.side;
         try {
             const optimizedPhoto = await this.prepareImageForUpload(file, {
-                maxWidth: 1600,
-                maxHeight: 1200,
-                quality: 0.72
+                maxWidth: 1280,
+                maxHeight: 960,
+                quality: 0.62,
+                minQuality: 0.4,
+                targetMaxBytes: 260000,
+                maxAttempts: 6,
+                scaleStep: 0.86
             });
             this.sidePhotos[side] = optimizedPhoto;
             this.displayPhotoPreview(side);
@@ -194,9 +207,13 @@ Se não conseguir ler algum campo, coloque string vazia.`;
         const panel = e.target.dataset.panel;
         try {
             const optimizedPhoto = await this.prepareImageForUpload(file, {
-                maxWidth: 1600,
-                maxHeight: 1200,
-                quality: 0.72
+                maxWidth: 1100,
+                maxHeight: 825,
+                quality: 0.58,
+                minQuality: 0.38,
+                targetMaxBytes: 220000,
+                maxAttempts: 6,
+                scaleStep: 0.84
             });
             this.panelPhotos[panel] = optimizedPhoto;
             this.displayPanelPreview(panel);
@@ -208,7 +225,7 @@ Se não conseguir ler algum campo, coloque string vazia.`;
     }
 
     displayPhotoPreview(side) {
-        const previewId = `photoPreview${side.charAt(0).toUpperCase() + side.slice(1)}`;
+        const previewId = `photoPreview${this.capitalizeKey(side)}`;
         const preview = document.getElementById(previewId);
         if (!preview) return;
         if (this.sidePhotos[side]) {
@@ -251,13 +268,31 @@ Se não conseguir ler algum campo, coloque string vazia.`;
         loading.classList.add('active');
 
         try {
-            const images = photos.map(([, dataUrl]) => ({
+            const images = photos.map(([side, dataUrl]) => ({
+                label: labels[side],
                 base64: dataUrl.split(',')[1],
                 mimeType: dataUrl.split(';')[0].split(':')[1]
             }));
+            const vehicleAnalysisRules = `Priorize PRECISAO acima de cobertura. Se houver duvida real sobre marca, modelo, placa ou ano, retorne string vazia nesse campo.
+Considere somente sinais visuais do carro, como formato dos farois, lanternas, grade, para-choques, vidros, carroceria, rodas, retrovisores e emblemas legiveis.
+Nao chute versao, equipamento ou ano exato.
+
+Regras de saida:
+- "marca": somente se estiver visualmente clara
+- "modelo": somente se estiver visualmente claro
+- "ano_aproximado": somente se der para estimar com boa seguranca; senao, ""
+- "placa": somente se estiver realmente legivel
+- "cor": use a cor predominante visivel
+
+No checklist:
+- inclua somente itens uteis para vistoria
+- inclua somente itens compativeis com esse carro
+- prefira uma lista enxuta e correta`;
 
             const prompt = `Analise estas fotos de um veículo. Identifique o veículo e extraia informações.
 Retorne APENAS um JSON válido sem markdown, sem \`\`\`, neste formato exato:
+${vehicleAnalysisRules}
+
 {
   "placa":"PLACA DO VEICULO",
   "marca":"MARCA",
@@ -279,7 +314,7 @@ IMPORTANTE sobre o checklist:
 Se não conseguir identificar algum campo, coloque string vazia.`;
 
             const result = await this.callGemini(prompt, images);
-            const data = this.parseJSON(result);
+            const data = this.normalizeVehicleData(this.parseJSON(result));
 
             this.vehicleData = data;
             this.renderVehicleFields(data);
@@ -428,6 +463,9 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
         const parts = [{ text: prompt }];
 
         images.forEach(img => {
+            if (img.label) {
+                parts.push({ text: `Foto: ${img.label}` });
+            }
             parts.push({
                 inline_data: {
                     mime_type: img.mimeType,
@@ -529,11 +567,24 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             maxWidth = 1600,
             maxHeight = 1600,
             quality = 0.76,
-            outputType = 'image/jpeg'
+            outputType = 'image/jpeg',
+            targetMaxBytes = 320000,
+            minQuality = 0.42,
+            maxAttempts = 5,
+            scaleStep = 0.88
         } = options;
 
         const dataUrl = await this.readFileAsDataURL(file);
-        return this.resizeDataUrlImage(dataUrl, { maxWidth, maxHeight, quality, outputType });
+        return this.resizeDataUrlImage(dataUrl, {
+            maxWidth,
+            maxHeight,
+            quality,
+            outputType,
+            targetMaxBytes,
+            minQuality,
+            maxAttempts,
+            scaleStep
+        });
     }
 
     readFileAsDataURL(file) {
@@ -550,37 +601,44 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             maxWidth = 1600,
             maxHeight = 1600,
             quality = 0.76,
-            outputType = 'image/jpeg'
+            outputType = 'image/jpeg',
+            targetMaxBytes = 320000,
+            minQuality = 0.42,
+            maxAttempts = 5,
+            scaleStep = 0.88
         } = options;
 
         return new Promise((resolve, reject) => {
             const image = new Image();
             image.onload = () => {
-                let { width, height } = image;
-                const scale = Math.min(maxWidth / width, maxHeight / height, 1);
-                width = Math.max(1, Math.round(width * scale));
-                height = Math.max(1, Math.round(height * scale));
+                const initialScale = Math.min(maxWidth / image.width, maxHeight / image.height, 1);
+                let width = Math.max(1, Math.round(image.width * initialScale));
+                let height = Math.max(1, Math.round(image.height * initialScale));
+                let currentQuality = quality;
 
-                const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
+                for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
 
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
-                    reject(new Error('Nao foi possivel inicializar a compressao da imagem.'));
-                    return;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        reject(new Error('Nao foi possivel inicializar a compressao da imagem.'));
+                        return;
+                    }
+
+                    ctx.drawImage(image, 0, 0, width, height);
+                    const compressed = canvas.toDataURL(outputType, currentQuality);
+
+                    if (compressed.length <= targetMaxBytes || attempt === maxAttempts - 1) {
+                        resolve(compressed);
+                        return;
+                    }
+
+                    currentQuality = Math.max(minQuality, currentQuality - 0.08);
+                    width = Math.max(1, Math.round(width * scaleStep));
+                    height = Math.max(1, Math.round(height * scaleStep));
                 }
-
-                ctx.drawImage(image, 0, 0, width, height);
-
-                let compressed = canvas.toDataURL(outputType, quality);
-
-                // Tenta reduzir mais se ainda ficar muito grande para a funcao serverless.
-                if (compressed.length > 900000) {
-                    compressed = canvas.toDataURL(outputType, Math.max(0.45, quality - 0.18));
-                }
-
-                resolve(compressed);
             };
             image.onerror = () => reject(new Error('Nao foi possivel processar a imagem selecionada.'));
             image.src = dataUrl;
@@ -595,6 +653,35 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
         } catch (error) {
             throw new Error(`A IA respondeu em um formato inválido.\nTrecho recebido: ${clean.slice(0, 1200)}`);
         }
+    }
+
+    normalizeVehicleData(data) {
+        const safeText = (value) => {
+            if (typeof value !== 'string') return '';
+            const trimmed = value.trim();
+            if (!trimmed) return '';
+            if (/^(desconhecido|nao identificado|não identificado|nao visivel|não visível|incerto|n\/a|null|undefined)$/i.test(trimmed)) {
+                return '';
+            }
+            return trimmed;
+        };
+
+        const normalizedChecklist = Array.isArray(data.checklist)
+            ? [...new Set(
+                data.checklist
+                    .map(item => safeText(item))
+                    .filter(Boolean)
+            )].slice(0, 18)
+            : [];
+
+        return {
+            placa: safeText(data.placa).toUpperCase(),
+            marca: safeText(data.marca),
+            modelo: safeText(data.modelo),
+            cor: safeText(data.cor),
+            ano_aproximado: safeText(data.ano_aproximado),
+            checklist: normalizedChecklist
+        };
     }
 
     setupGlobalErrorHandlers() {
