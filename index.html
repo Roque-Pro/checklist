@@ -26,6 +26,7 @@
             <div class="header-content">
                 <input type="text" id="companyName" class="company-name-input" placeholder="Nome da Empresa" value="Iguacu Reboque">
             </div>
+            <button type="button" id="btnInstall" class="btn-install" style="display:none">📲 Instalar App</button>
         </header>
 
         <main class="form-container">
@@ -177,6 +178,22 @@
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js');
         }
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('btnInstall').style.display = '';
+        });
+        document.getElementById('btnInstall').addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            await deferredPrompt.userChoice;
+            deferredPrompt = null;
+            document.getElementById('btnInstall').style.display = 'none';
+        });
+        window.addEventListener('appinstalled', () => {
+            document.getElementById('btnInstall').style.display = 'none';
+        });
     </script>
 </body>
 </html>
