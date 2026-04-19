@@ -74,9 +74,10 @@ body::after {
 }
 
 .header {
-    display: grid;
-    grid-template-columns: 104px 1fr;
-    gap: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
     padding: 34px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 32px;
@@ -111,10 +112,10 @@ body::after {
 }
 
 .header-logo {
-    width: 88px;
-    height: 88px;
-    border-radius: 16px;
-    object-fit: cover;
+    width: 100%;
+    max-width: 400px;
+    height: auto;
+    object-fit: contain;
     background: #2E3393;
     border: none;
     box-shadow: none;
@@ -123,7 +124,9 @@ body::after {
 .header-content {
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 12px;
+    width: 100%;
 }
 
 .header-eyebrow {
@@ -142,13 +145,14 @@ body::after {
 .company-name-input {
     width: 100%;
     padding: 10px 16px;
-    background: var(--bg-input);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 14px;
     color: var(--text);
     font: 800 22px/1.2 "Space Grotesk", sans-serif;
     letter-spacing: 0.06em;
     text-transform: uppercase;
+    text-align: center;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
@@ -907,9 +911,7 @@ body::after {
     }
 
     .header-logo {
-        width: 72px;
-        height: 72px;
-        border-radius: 22px;
+        max-width: 280px;
     }
 
     .header-description {
