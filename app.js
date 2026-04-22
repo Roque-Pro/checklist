@@ -590,7 +590,22 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
         if (!response.ok) {
             let errBody = '';
             try { errBody = await response.text(); } catch (_) {}
-            const msg = `Erro na API (HTTP ${response.status}):\n\n${errBody || 'Sem detalhes'}`;
+            let userFacingReason = errBody || 'Sem detalhes';
+            try {
+                const parsed = JSON.parse(errBody);
+                if (parsed?.userMessage) {
+                    userFacingReason = `${parsed.userMessage}\n\nDetalhes tecnicos:\n${errBody}`;
+                } else if (response.status === 503) {
+                    userFacingReason = `A IA esta com alta demanda no momento. O sistema tentou novamente automaticamente, mas o servico continuou indisponivel.\n\nDetalhes tecnicos:\n${errBody}`;
+                } else if (response.status === 429) {
+                    userFacingReason = `A chave da IA esta temporariamente sem capacidade ou cota disponivel. Aguarde um pouco e tente novamente.\n\nDetalhes tecnicos:\n${errBody}`;
+                }
+            } catch (_) {
+                if (response.status === 503) {
+                    userFacingReason = 'A IA esta com alta demanda no momento. O sistema tentou novamente automaticamente, mas o servico continuou indisponivel.';
+                }
+            }
+            const msg = `Erro na API (HTTP ${response.status}):\n\n${userFacingReason}`;
             this.showErrorModal('Erro HTTP na IA', {
                 message: msg,
                 diagnostic: this.buildDiagnosticSnapshot({
