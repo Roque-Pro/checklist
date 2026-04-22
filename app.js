@@ -152,13 +152,13 @@ Se não conseguir ler algum campo, coloque string vazia.`;
             this.showMessage('Resposta da IA: ' + result, 'success');
             const data = this.normalizeDocumentData(this.parseJSON(result));
 
-            if (!data.nome && !data.rg && !data.cpf) {
-                throw new Error('A IA nao conseguiu ler o documento. A foto pode estar tremida, escura, cortada ou com reflexo.');
-            }
-
             this.proprietarioData = data;
             this.renderProprietarioFields(data);
-            this.showMessage('Dados extraídos com sucesso!', 'success');
+            if (!data.nome || !data.rg || !data.cpf) {
+                this.showMessage('A IA preencheu parcialmente o documento. Complete os campos restantes manualmente se quiser.', 'success');
+            } else {
+                this.showMessage('Dados extraídos com sucesso!', 'success');
+            }
         } catch (error) {
             this.showErrorModal('Erro ao processar documento com IA', error);
             this.showMessage('Erro: ' + error.message, 'error');
@@ -395,14 +395,22 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             const result = await this.callGemini(prompt, images);
             const data = this.normalizeVehicleData(this.parseJSON(result));
 
-            if (!data.placa && !data.marca && !data.modelo && (!data.checklist || data.checklist.length === 0)) {
-                throw new Error('A IA nao conseguiu identificar o veiculo. As fotos podem estar escuras, tremidas, muito fechadas ou sem angulos suficientes.');
-            }
-
             this.vehicleData = data;
             this.renderVehicleFields(data);
             if (data.checklist && data.checklist.length > 0) {
                 this.renderChecklist(data.checklist);
+            } else if (!this.checklistItems.length) {
+                this.renderChecklist([
+                    'Faróis', 'Lanternas Traseiras', 'Retrovisor Esquerdo', 'Retrovisor Direito',
+                    'Para-choque Dianteiro', 'Para-choque Traseiro', 'Rodas', 'Pneus',
+                    'Vidro Dianteiro', 'Vidro Traseiro', 'Cinto de Segurança', 'Buzina'
+                ]);
+            }
+
+            if (!data.placa || !data.marca || !data.modelo || !data.cor) {
+                this.showMessage('A IA preencheu parcialmente o veículo. Complete os campos restantes manualmente se quiser.', 'success');
+            } else {
+                this.showMessage('Dados do veículo preenchidos com sucesso!', 'success');
             }
         } catch (error) {
             this.showErrorModal('Erro ao analisar veículo com IA', error);
@@ -871,8 +879,109 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
         try {
             return JSON.parse(clean);
         } catch (error) {
+            const repaired = this.tryRepairStructuredResponse(clean);
+            if (repaired) return repaired;
             throw new Error(`A IA respondeu em um formato inválido.\nTrecho recebido: ${clean.slice(0, 1200)}`);
         }
+    }
+
+    tryRepairStructuredResponse(text) {
+        const extractedObject = this.extractBalancedJsonObject(text);
+        if (extractedObject) {
+            try {
+                return JSON.parse(extractedObject);
+            } catch (_) {
+                // cai para o parser tolerante abaixo
+            }
+        }
+
+        const salvaged = this.salvageJsonLikeFields(text);
+        if (!salvaged) return null;
+
+        const hasUsefulVehicleData = ['placa', 'marca', 'modelo', 'cor', 'ano_aproximado']
+            .some(key => typeof salvaged[key] === 'string' && salvaged[key]);
+        const hasUsefulDocumentData = ['nome', 'rg', 'cpf']
+            .some(key => typeof salvaged[key] === 'string' && salvaged[key]);
+        const hasChecklist = Array.isArray(salvaged.checklist) && salvaged.checklist.length > 0;
+
+        return (hasUsefulVehicleData || hasUsefulDocumentData || hasChecklist) ? salvaged : null;
+    }
+
+    extractBalancedJsonObject(text) {
+        const start = text.indexOf('{');
+        if (start === -1) return '';
+
+        let depth = 0;
+        let inString = false;
+        let escaping = false;
+
+        for (let i = start; i < text.length; i++) {
+            const char = text[i];
+
+            if (inString) {
+                if (escaping) {
+                    escaping = false;
+                } else if (char === '\\') {
+                    escaping = true;
+                } else if (char === '"') {
+                    inString = false;
+                }
+                continue;
+            }
+
+            if (char === '"') {
+                inString = true;
+                continue;
+            }
+
+            if (char === '{') depth++;
+            if (char === '}') {
+                depth--;
+                if (depth === 0) {
+                    return text.slice(start, i + 1);
+                }
+            }
+        }
+
+        return '';
+    }
+
+    salvageJsonLikeFields(text) {
+        const readStringField = (field) => {
+            const match = text.match(new RegExp(`"${field}"\\s*:\\s*"([^"]*)`, 'i'));
+            return match ? match[1].trim() : '';
+        };
+
+        const readChecklist = () => {
+            const checklistStart = text.search(/"checklist"\s*:\s*\[/i);
+            if (checklistStart === -1) return [];
+
+            const slice = text.slice(checklistStart);
+            const items = [];
+            const itemRegex = /"([^"\n\r]+)"/g;
+            let match;
+
+            while ((match = itemRegex.exec(slice)) !== null) {
+                const value = match[1].trim();
+                if (value.toLowerCase() === 'checklist') continue;
+                if (!value) continue;
+                items.push(value);
+            }
+
+            return [...new Set(items)];
+        };
+
+        return {
+            placa: readStringField('placa'),
+            marca: readStringField('marca'),
+            modelo: readStringField('modelo'),
+            cor: readStringField('cor'),
+            ano_aproximado: readStringField('ano_aproximado'),
+            nome: readStringField('nome'),
+            rg: readStringField('rg'),
+            cpf: readStringField('cpf'),
+            checklist: readChecklist()
+        };
     }
 
     normalizeVehicleData(data) {
