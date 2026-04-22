@@ -5,6 +5,9 @@ class LaudoApp {
         this.panelPhotos = { lights: null, full: null, trunk: null };
         this.extraPhotos = [];
         this.docProprietarioPhoto = null;
+        this.isAnalyzingDoc = false;
+        this.isAnalyzingVehicle = false;
+        this.lastVehicleAnalysisSignature = '';
         this.checklistStatus = {};
         this.checklistItems = [];
         this.proprietarioData = {};
@@ -17,12 +20,20 @@ class LaudoApp {
         this.setupGlobalErrorHandlers();
         this.setupEventListeners();
         this.setupSignatureCanvases();
+        this.setupAutoAnalysisUI();
         this.loadDraft();
     }
 
     capitalizeKey(value) {
         if (typeof value !== 'string' || !value) return '';
         return value.charAt(0).toUpperCase() + value.slice(1);
+    }
+
+    setupAutoAnalysisUI() {
+        ['btnAnalisarProprietario', 'btnAnalisarVeiculo'].forEach(id => {
+            const button = document.getElementById(id);
+            if (button) button.style.display = 'none';
+        });
     }
 
     // ═══════════════════════════════════════
@@ -98,12 +109,21 @@ class LaudoApp {
             const optimizedPhoto = await this.prepareImageForUpload(file, {
                 maxWidth: 1600,
                 maxHeight: 1600,
-                quality: 0.78
+                quality: 0.84,
+                minQuality: 0.6,
+                targetMaxBytes: 320000,
+                mode: 'document'
             });
+            const qualityCheck = this.assessImageQuality(optimizedPhoto, { mode: 'document' });
             this.docProprietarioPhoto = optimizedPhoto;
             document.getElementById('previewDocProprietario').innerHTML = `<img src="${optimizedPhoto}" alt="Documento">`;
-            document.getElementById('btnAnalisarProprietario').style.display = '';
-            this.showMessage('Documento otimizado para envio.', 'success');
+            document.getElementById('btnAnalisarProprietario').style.display = 'none';
+            if (!qualityCheck.ok) {
+                this.showModal(`Nao consegui validar a foto do documento.\n\nMotivo: ${qualityCheck.reason}\n\nTente novamente com o documento inteiro visivel, sem reflexo e sem tremido.`);
+            } else {
+                this.showMessage('Documento otimizado e enviado para leitura.', 'success');
+                this.analyzeProprietarioDoc();
+            }
         } catch (error) {
             this.showErrorModal('Erro ao preparar foto do documento', error);
         }
@@ -111,9 +131,10 @@ class LaudoApp {
     }
 
     async analyzeProprietarioDoc() {
-        if (!this.docProprietarioPhoto) return;
+        if (!this.docProprietarioPhoto || this.isAnalyzingDoc) return;
         const loading = document.getElementById('loadingProprietario');
         const btn = document.getElementById('btnAnalisarProprietario');
+        this.isAnalyzingDoc = true;
         btn.style.display = 'none';
         loading.classList.add('active');
 
@@ -129,7 +150,11 @@ Se não conseguir ler algum campo, coloque string vazia.`;
 
             const result = await this.callGemini(prompt, [{ base64, mimeType }]);
             this.showMessage('Resposta da IA: ' + result, 'success');
-            const data = this.normalizeVehicleData(this.parseJSON(result));
+            const data = this.normalizeDocumentData(this.parseJSON(result));
+
+            if (!data.nome && !data.rg && !data.cpf) {
+                throw new Error('A IA nao conseguiu ler o documento. A foto pode estar tremida, escura, cortada ou com reflexo.');
+            }
 
             this.proprietarioData = data;
             this.renderProprietarioFields(data);
@@ -137,8 +162,9 @@ Se não conseguir ler algum campo, coloque string vazia.`;
         } catch (error) {
             this.showErrorModal('Erro ao processar documento com IA', error);
             this.showMessage('Erro: ' + error.message, 'error');
-            btn.style.display = '';
+            btn.style.display = 'none';
         } finally {
+            this.isAnalyzingDoc = false;
             loading.classList.remove('active');
         }
     }
@@ -202,6 +228,7 @@ Se não conseguir ler algum campo, coloque string vazia.`;
             this.sidePhotos[side] = optimizedPhoto;
             this.displayPhotoPreview(side);
             this.autoSave();
+            this.maybeAutoAnalyzeVehicle();
         } catch (error) {
             this.showErrorModal('Erro ao preparar foto do veículo', error);
         }
@@ -301,6 +328,7 @@ Se não conseguir ler algum campo, coloque string vazia.`;
     }
 
     async analyzeVehicle() {
+        if (this.isAnalyzingVehicle) return;
         const missing = [];
         const labels = { left: 'Lateral Esquerda', right: 'Lateral Direita', front: 'Frente', back: 'Traseira' };
         Object.entries(this.sidePhotos).forEach(([side, val]) => {
@@ -314,6 +342,7 @@ Se não conseguir ler algum campo, coloque string vazia.`;
 
         const loading = document.getElementById('loadingVeiculo');
         const btn = document.getElementById('btnAnalisarVeiculo');
+        this.isAnalyzingVehicle = true;
         btn.style.display = 'none';
         loading.classList.add('active');
 
@@ -366,6 +395,10 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             const result = await this.callGemini(prompt, images);
             const data = this.normalizeVehicleData(this.parseJSON(result));
 
+            if (!data.placa && !data.marca && !data.modelo && (!data.checklist || data.checklist.length === 0)) {
+                throw new Error('A IA nao conseguiu identificar o veiculo. As fotos podem estar escuras, tremidas, muito fechadas ou sem angulos suficientes.');
+            }
+
             this.vehicleData = data;
             this.renderVehicleFields(data);
             if (data.checklist && data.checklist.length > 0) {
@@ -374,8 +407,9 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
         } catch (error) {
             this.showErrorModal('Erro ao analisar veículo com IA', error);
             this.showMessage('Erro ao analisar veículo: ' + error.message, 'error');
-            btn.style.display = '';
+            btn.style.display = 'none';
         } finally {
+            this.isAnalyzingVehicle = false;
             loading.classList.remove('active');
         }
     }
@@ -612,6 +646,30 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
         return text;
     }
 
+    maybeAutoAnalyzeVehicle() {
+        const requiredSides = ['left', 'right', 'front', 'back'];
+        const allRequiredReady = requiredSides.every(side => this.sidePhotos[side]);
+        if (!allRequiredReady || this.isAnalyzingVehicle) return;
+
+        const signature = requiredSides
+            .map(side => `${this.sidePhotos[side]?.length || 0}:${this.sidePhotos[side]?.slice(-24) || ''}`)
+            .join('|');
+        if (this.lastVehicleAnalysisSignature === signature) return;
+
+        const qualityChecks = requiredSides.map(side =>
+            this.assessImageQuality(this.sidePhotos[side], { mode: 'vehicle', label: side })
+        );
+        const failed = qualityChecks.find(check => !check.ok);
+        if (failed) {
+            this.showModal(`Nao consegui validar a foto de ${failed.label}.\n\nMotivo: ${failed.reason}\n\nTire novamente com mais luz, menos tremido e pegando bem todo o angulo.`);
+            return;
+        }
+
+        this.lastVehicleAnalysisSignature = signature;
+        this.showMessage('Fotos principais recebidas. Iniciando analise automatica...', 'success');
+        this.analyzeVehicle();
+    }
+
     async prepareImageForUpload(file, options = {}) {
         const {
             maxWidth = 1600,
@@ -621,7 +679,8 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             targetMaxBytes = 320000,
             minQuality = 0.42,
             maxAttempts = 5,
-            scaleStep = 0.88
+            scaleStep = 0.88,
+            mode = 'default'
         } = options;
 
         const dataUrl = await this.readFileAsDataURL(file);
@@ -633,7 +692,8 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             targetMaxBytes,
             minQuality,
             maxAttempts,
-            scaleStep
+            scaleStep,
+            mode
         });
     }
 
@@ -655,7 +715,8 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             targetMaxBytes = 320000,
             minQuality = 0.42,
             maxAttempts = 5,
-            scaleStep = 0.88
+            scaleStep = 0.88,
+            mode = 'default'
         } = options;
 
         return new Promise((resolve, reject) => {
@@ -678,6 +739,7 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
                     }
 
                     ctx.drawImage(image, 0, 0, width, height);
+                    this.enhanceCanvasImage(ctx, canvas, mode);
                     const compressed = canvas.toDataURL(outputType, currentQuality);
 
                     if (compressed.length <= targetMaxBytes || attempt === maxAttempts - 1) {
@@ -693,6 +755,99 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             image.onerror = () => reject(new Error('Nao foi possivel processar a imagem selecionada.'));
             image.src = dataUrl;
         });
+    }
+
+    enhanceCanvasImage(ctx, canvas, mode) {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+
+        if (mode === 'document') {
+            for (let i = 0; i < data.length; i += 4) {
+                const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+                const boosted = this.clampColor(((gray - 128) * 1.35) + 128 + 10);
+                data[i] = boosted;
+                data[i + 1] = boosted;
+                data[i + 2] = boosted;
+            }
+            this.applySharpenKernel(data, canvas.width, canvas.height, 0.45);
+        } else {
+            for (let i = 0; i < data.length; i += 4) {
+                data[i] = this.clampColor(((data[i] - 128) * 1.08) + 128 + 4);
+                data[i + 1] = this.clampColor(((data[i + 1] - 128) * 1.08) + 128 + 4);
+                data[i + 2] = this.clampColor(((data[i + 2] - 128) * 1.08) + 128 + 4);
+            }
+            this.applySharpenKernel(data, canvas.width, canvas.height, 0.22);
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+    }
+
+    applySharpenKernel(data, width, height, strength = 0.3) {
+        const source = new Uint8ClampedArray(data);
+        const kernel = [
+            0, -1, 0,
+            -1, 5, -1,
+            0, -1, 0
+        ];
+
+        for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+                const index = (y * width + x) * 4;
+                for (let channel = 0; channel < 3; channel++) {
+                    let value = 0;
+                    let kernelIndex = 0;
+                    for (let ky = -1; ky <= 1; ky++) {
+                        for (let kx = -1; kx <= 1; kx++) {
+                            const sampleIndex = ((y + ky) * width + (x + kx)) * 4 + channel;
+                            value += source[sampleIndex] * kernel[kernelIndex++];
+                        }
+                    }
+                    const mixed = source[index + channel] * (1 - strength) + value * strength;
+                    data[index + channel] = this.clampColor(mixed);
+                }
+            }
+        }
+    }
+
+    clampColor(value) {
+        return Math.max(0, Math.min(255, Math.round(value)));
+    }
+
+    assessImageQuality(dataUrl, options = {}) {
+        if (!dataUrl) {
+            return { ok: false, reason: 'foto ausente', label: options.label || 'a imagem' };
+        }
+
+        const mode = options.mode || 'default';
+        const labelMap = {
+            left: 'lateral esquerda',
+            right: 'lateral direita',
+            front: 'frente',
+            back: 'traseira',
+            document: 'documento'
+        };
+        const label = labelMap[options.label] || options.label || (mode === 'document' ? 'documento' : 'a imagem');
+
+        try {
+            const [meta, payload] = dataUrl.split(',');
+            const base64Length = payload ? payload.length : 0;
+            if (base64Length < 50000) {
+                return { ok: false, reason: 'a foto ficou pequena demais e perdeu detalhe', label };
+            }
+
+            const mime = meta || '';
+            if (!mime.includes('image/')) {
+                return { ok: false, reason: 'arquivo de imagem invalido', label };
+            }
+
+            if (mode === 'document' && base64Length < 120000) {
+                return { ok: false, reason: 'o documento parece distante ou sem nitidez suficiente', label };
+            }
+
+            return { ok: true, reason: '', label };
+        } catch (_) {
+            return { ok: false, reason: 'nao foi possivel validar a qualidade da foto', label };
+        }
     }
 
     parseJSON(text) {
@@ -731,6 +886,24 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             cor: safeText(data.cor),
             ano_aproximado: safeText(data.ano_aproximado),
             checklist: normalizedChecklist
+        };
+    }
+
+    normalizeDocumentData(data) {
+        const safeText = (value) => {
+            if (typeof value !== 'string') return '';
+            const trimmed = value.trim();
+            if (!trimmed) return '';
+            if (/^(desconhecido|nao identificado|n\/a|null|undefined)$/i.test(trimmed)) {
+                return '';
+            }
+            return trimmed;
+        };
+
+        return {
+            nome: safeText(data.nome),
+            rg: safeText(data.rg).toUpperCase(),
+            cpf: safeText(data.cpf)
         };
     }
 
@@ -913,6 +1086,7 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             if (data.docProprietarioPhoto) {
                 this.docProprietarioPhoto = data.docProprietarioPhoto;
                 document.getElementById('previewDocProprietario').innerHTML = `<img src="${data.docProprietarioPhoto}" alt="Documento">`;
+                document.getElementById('btnAnalisarProprietario').style.display = 'none';
             }
 
             // Veículo
@@ -943,9 +1117,7 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             if (data.sidePhotos) {
                 this.sidePhotos = data.sidePhotos;
                 Object.keys(this.sidePhotos).forEach(side => this.displayPhotoPreview(side));
-                if (Object.values(this.sidePhotos).some(p => p)) {
-                    document.getElementById('btnAnalisarVeiculo').style.display = '';
-                }
+                document.getElementById('btnAnalisarVeiculo').style.display = 'none';
             }
             if (data.panelPhotos) {
                 this.panelPhotos = data.panelPhotos;
@@ -995,6 +1167,7 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
         this.checklistItems = [];
         this.proprietarioData = {};
         this.vehicleData = {};
+        this.lastVehicleAnalysisSignature = '';
         localStorage.removeItem(this.DRAFT_KEY);
         this.showMessage('Novo laudo pronto para preenchimento', 'success');
     }
