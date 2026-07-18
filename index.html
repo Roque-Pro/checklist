@@ -41,7 +41,7 @@
             <section class="form-section">
                 <h2>Dados do Proprietario <span class="ai-badge">IA</span></h2>
                 <div class="ai-capture-area">
-                    <input type="file" id="photoDocProprietario" accept="image/*"  style="display:none">
+                    <input type="file" id="photoDocProprietario" accept="image/*" capture="environment" style="display:none">
                     <button type="button" id="btnFotoDocProprietario" class="btn-ai-capture">📷 Fotografar documento</button>
                     <div id="previewDocProprietario" class="doc-preview"></div>
                     <button type="button" id="btnAnalisarProprietario" class="btn-ai-analyze" style="display:none">🤖 Processar com IA</button>
@@ -62,7 +62,7 @@
                         <h3>Lateral Esquerda</h3>
                         <img src="img/ld%20esquedo.PNG" alt="Lateral Esquerda" class="car-diagram">
                         <div class="photo-upload">
-                            <input type="file" id="photoLeft" accept="image/*"  class="photo-input" data-side="left" style="display:none">
+                            <input type="file" id="photoLeft" accept="image/*" capture="environment" class="photo-input" data-side="left" style="display:none">
                             <button type="button" class="btn-photo" data-side="left">📷 Foto</button>
                             <div id="photoPreviewLeft" class="photo-preview"></div>
                         </div>
@@ -71,7 +71,7 @@
                         <h3>Lateral Direita</h3>
                         <img src="img/ld%20direito.PNG" alt="Lateral Direita" class="car-diagram">
                         <div class="photo-upload">
-                            <input type="file" id="photoRight" accept="image/*"  class="photo-input" data-side="right" style="display:none">
+                            <input type="file" id="photoRight" accept="image/*" capture="environment" class="photo-input" data-side="right" style="display:none">
                             <button type="button" class="btn-photo" data-side="right">📷 Foto</button>
                             <div id="photoPreviewRight" class="photo-preview"></div>
                         </div>
@@ -80,7 +80,7 @@
                         <h3>Frente</h3>
                         <img src="img/frente.PNG" alt="Frente" class="car-diagram">
                         <div class="photo-upload">
-                            <input type="file" id="photoFront" accept="image/*"  class="photo-input" data-side="front" style="display:none">
+                            <input type="file" id="photoFront" accept="image/*" capture="environment" class="photo-input" data-side="front" style="display:none">
                             <button type="button" class="btn-photo" data-side="front">📷 Foto</button>
                             <div id="photoPreviewFront" class="photo-preview"></div>
                         </div>
@@ -89,7 +89,7 @@
                         <h3>Traseira</h3>
                         <img src="img/traseira.PNG" alt="Traseira" class="car-diagram">
                         <div class="photo-upload">
-                            <input type="file" id="photoBack" accept="image/*"  class="photo-input" data-side="back" style="display:none">
+                            <input type="file" id="photoBack" accept="image/*" capture="environment" class="photo-input" data-side="back" style="display:none">
                             <button type="button" class="btn-photo" data-side="back">📷 Foto</button>
                             <div id="photoPreviewBack" class="photo-preview"></div>
                         </div>
@@ -113,7 +113,7 @@
                     <div class="car-side">
                         <h3>Luzes e Kilometragem</h3>
                         <div class="photo-upload">
-                            <input type="file" id="photoPanelLights" accept="image/*"  class="panel-photo-input" data-panel="lights" style="display:none">
+                            <input type="file" id="photoPanelLights" accept="image/*" capture="environment" class="panel-photo-input" data-panel="lights" style="display:none">
                             <button type="button" class="btn-photo btn-panel-photo" data-panel="lights">📷 Foto do painel</button>
                             <div id="photoPreviewPanelLights" class="photo-preview"></div>
                         </div>
@@ -121,7 +121,7 @@
                     <div class="car-side">
                         <h3>Painel Total</h3>
                         <div class="photo-upload">
-                            <input type="file" id="photoPanelFull" accept="image/*"  class="panel-photo-input" data-panel="full" style="display:none">
+                            <input type="file" id="photoPanelFull" accept="image/*" capture="environment" class="panel-photo-input" data-panel="full" style="display:none">
                             <button type="button" class="btn-photo btn-panel-photo" data-panel="full">📷 Foto do painel</button>
                             <div id="photoPreviewPanelFull" class="photo-preview"></div>
                         </div>
@@ -129,7 +129,7 @@
                     <div class="car-side">
                         <h3>Porta-Malas</h3>
                         <div class="photo-upload">
-                            <input type="file" id="photoTrunk" accept="image/*"  class="panel-photo-input" data-panel="trunk" style="display:none">
+                            <input type="file" id="photoTrunk" accept="image/*" capture="environment" class="panel-photo-input" data-panel="trunk" style="display:none">
                             <button type="button" class="btn-photo btn-panel-photo" data-panel="trunk">📷 Foto do porta-malas</button>
                             <div id="photoPreviewTrunk" class="photo-preview"></div>
                         </div>
@@ -140,7 +140,7 @@
 
                 <h3 class="sub-section-title">Fotos Adicionais</h3>
                 <div id="extraPhotosContainer" class="extra-photos-grid"></div>
-                <input type="file" id="extraPhotoInput" accept="image/*"  style="display:none">
+                <input type="file" id="extraPhotoInput" accept="image/*" capture="environment" style="display:none">
                 <button type="button" id="btnAddExtraPhoto" class="btn-photo btn-add-extra">➕ Adicionar foto</button>
             </section>
 
