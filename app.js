@@ -706,83 +706,71 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             mode = 'default'
         } = options;
 
-        const dataUrl = await this.readFileAsDataURL(file);
-        return this.resizeDataUrlImage(dataUrl, {
-            maxWidth,
-            maxHeight,
-            quality,
-            outputType,
-            targetMaxBytes,
-            minQuality,
-            maxAttempts,
-            scaleStep,
-            mode
-        });
+        const imageUrl = URL.createObjectURL(file);
+        try {
+            const image = await this.loadImageElement(imageUrl);
+            return this.compressOnCanvas(image, {
+                maxWidth, maxHeight, quality, outputType,
+                targetMaxBytes, minQuality, maxAttempts, scaleStep, mode
+            });
+        } finally {
+            URL.revokeObjectURL(imageUrl);
+        }
     }
 
-    readFileAsDataURL(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = () => reject(new Error('Nao foi possivel ler a imagem selecionada.'));
-            reader.readAsDataURL(file);
-        });
-    }
-
-    resizeDataUrlImage(dataUrl, options = {}) {
-        const {
-            maxWidth = 1600,
-            maxHeight = 1600,
-            quality = 0.76,
-            outputType = 'image/jpeg',
-            targetMaxBytes = 320000,
-            minQuality = 0.42,
-            maxAttempts = 5,
-            scaleStep = 0.88,
-            mode = 'default'
-        } = options;
-
+    loadImageElement(url) {
         return new Promise((resolve, reject) => {
             const image = new Image();
-            image.onload = () => {
-                const initialScale = Math.min(maxWidth / image.width, maxHeight / image.height, 1);
-                let width = Math.max(1, Math.round(image.width * initialScale));
-                let height = Math.max(1, Math.round(image.height * initialScale));
-                let currentQuality = quality;
-
-                for (let attempt = 0; attempt < maxAttempts; attempt++) {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = width;
-                    canvas.height = height;
-
-                    const ctx = canvas.getContext('2d');
-                    if (!ctx) {
-                        reject(new Error('Nao foi possivel inicializar a compressao da imagem.'));
-                        return;
-                    }
-
-                    ctx.drawImage(image, 0, 0, width, height);
-                    this.enhanceCanvasImage(ctx, canvas, mode);
-                    const compressed = canvas.toDataURL(outputType, currentQuality);
-
-                    if (compressed.length <= targetMaxBytes || attempt === maxAttempts - 1) {
-                        resolve(compressed);
-                        return;
-                    }
-
-                    currentQuality = Math.max(minQuality, currentQuality - 0.08);
-                    width = Math.max(1, Math.round(width * scaleStep));
-                    height = Math.max(1, Math.round(height * scaleStep));
-                }
-            };
+            image.onload = () => resolve(image);
             image.onerror = () => reject(new Error('Nao foi possivel processar a imagem selecionada.'));
-            image.src = dataUrl;
+            image.src = url;
         });
+    }
+
+    compressOnCanvas(image, options = {}) {
+        const {
+            maxWidth = 1600, maxHeight = 1600, quality = 0.76,
+            outputType = 'image/jpeg', targetMaxBytes = 320000,
+            minQuality = 0.42, maxAttempts = 5, scaleStep = 0.88, mode = 'default'
+        } = options;
+
+        const initialScale = Math.min(maxWidth / image.width, maxHeight / image.height, 1);
+        let width = Math.max(1, Math.round(image.width * initialScale));
+        let height = Math.max(1, Math.round(image.height * initialScale));
+        let currentQuality = quality;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                throw new Error('Nao foi possivel inicializar a compressao da imagem.');
+            }
+
+            ctx.drawImage(image, 0, 0, width, height);
+            this.enhanceCanvasImage(ctx, canvas, mode);
+            const compressed = canvas.toDataURL(outputType, currentQuality);
+
+            if (compressed.length <= targetMaxBytes || attempt === maxAttempts - 1) {
+                return compressed;
+            }
+
+            currentQuality = Math.max(minQuality, currentQuality - 0.08);
+            width = Math.max(1, Math.round(width * scaleStep));
+            height = Math.max(1, Math.round(height * scaleStep));
+        }
     }
 
     enhanceCanvasImage(ctx, canvas, mode) {
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
+        let imageData, data;
+        try {
+            imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            data = imageData.data;
+        } catch (_) {
+            return;
+        }
 
         if (mode === 'document') {
             for (let i = 0; i < data.length; i += 4) {
@@ -802,7 +790,7 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             this.applySharpenKernel(data, canvas.width, canvas.height, 0.22);
         }
 
-        ctx.putImageData(imageData, 0, 0);
+        try { ctx.putImageData(imageData, 0, 0); } catch (_) {}
     }
 
     applySharpenKernel(data, width, height, strength = 0.3) {
@@ -834,6 +822,15 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
 
     clampColor(value) {
         return Math.max(0, Math.min(255, Math.round(value)));
+    }
+
+    safeCanvasDataURL(id) {
+        try {
+            const canvas = document.getElementById(id);
+            return canvas ? canvas.toDataURL() : '';
+        } catch (_) {
+            return '';
+        }
     }
 
     assessImageQuality(dataUrl, options = {}) {
@@ -1167,8 +1164,8 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             extraPhotos: this.extraPhotos,
             docProprietarioPhoto: this.docProprietarioPhoto,
             signatures: {
-                operador: document.getElementById('sigOperador').toDataURL(),
-                proprietario: document.getElementById('sigProprietario').toDataURL()
+                operador: this.safeCanvasDataURL('sigOperador'),
+                proprietario: this.safeCanvasDataURL('sigProprietario')
             },
             timestamp: new Date().toISOString()
         };
@@ -1190,7 +1187,7 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
     autoSave() {
         try {
             const data = this.getFormData();
-            sessionStorage.setItem(this.DRAFT_KEY, JSON.stringify(data));
+            localStorage.setItem(this.DRAFT_KEY, JSON.stringify(data));
         } catch (e) { /* silent */ }
     }
 
