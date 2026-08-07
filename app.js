@@ -13,6 +13,7 @@ class LaudoApp {
         this.proprietarioData = {};
         this.vehicleData = {};
         this.DRAFT_KEY = 'laudo_current';
+        this._quotaWarned = false;
         this.init();
     }
 
@@ -118,6 +119,7 @@ class LaudoApp {
             this.docProprietarioPhoto = optimizedPhoto;
             document.getElementById('previewDocProprietario').innerHTML = `<img src="${optimizedPhoto}" alt="Documento">`;
             document.getElementById('btnAnalisarProprietario').style.display = 'none';
+            this.autoSave();
             if (!qualityCheck.ok) {
                 this.showModal(`Nao consegui validar a foto do documento.\n\nMotivo: ${qualityCheck.reason}\n\nTente novamente com o documento inteiro visivel, sem reflexo e sem tremido.`);
             } else {
@@ -395,9 +397,23 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             const result = await this.callGemini(prompt, images);
             const data = this.normalizeVehicleData(this.parseJSON(result));
 
+            // Não sobrescreve o que o usuário preencheu manualmente:
+            // mescla os dados da IA com valores já digitados (manual tem prioridade)
+            const manual = this.readVehicleFieldValues();
+            const merged = {
+                placa: manual.placa || data.placa,
+                cor: manual.cor || data.cor,
+                marca: manual.marca || data.marca,
+                modelo: manual.modelo || data.modelo,
+                ano_aproximado: manual.ano || data.ano_aproximado
+            };
+
             this.vehicleData = data;
-            this.renderVehicleFields(data);
-            if (data.checklist && data.checklist.length > 0) {
+            this.renderVehicleFields(merged);
+            this.restoreVehicleFieldValues(manual);
+
+            // Só substitui o checklist se o usuário ainda não montou o dele
+            if (data.checklist && data.checklist.length > 0 && !this.checklistItems.length) {
                 this.renderChecklist(data.checklist);
             } else if (!this.checklistItems.length) {
                 this.renderChecklist([
@@ -481,6 +497,37 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
             el.addEventListener('input', () => this.autoSave());
             el.addEventListener('change', () => this.autoSave());
         });
+        this.autoSave();
+    }
+
+    readVehicleFieldValues() {
+        const getVal = (id) => {
+            const el = document.getElementById(id);
+            return el ? el.value : '';
+        };
+        return {
+            placa: getVal('veiPlaca'),
+            cor: getVal('veiCor'),
+            marca: getVal('veiMarca'),
+            modelo: getVal('veiModelo'),
+            ano: getVal('veiAno'),
+            fuel: getVal('veiFuel'),
+            km: getVal('veiKM'),
+            conservacao: getVal('veiConservacao')
+        };
+    }
+
+    restoreVehicleFieldValues(values) {
+        if (!values) return;
+        const setVal = (id, value) => {
+            if (value) {
+                const el = document.getElementById(id);
+                if (el) el.value = value;
+            }
+        };
+        setVal('veiFuel', values.fuel);
+        setVal('veiKM', values.km);
+        setVal('veiConservacao', values.conservacao);
         this.autoSave();
     }
 
@@ -1188,7 +1235,26 @@ Se não conseguir identificar algum campo, coloque string vazia.`;
         try {
             const data = this.getFormData();
             localStorage.setItem(this.DRAFT_KEY, JSON.stringify(data));
-        } catch (e) { /* silent */ }
+            this._quotaWarned = false;
+        } catch (e) {
+            try {
+                // Fallback: salva pelo menos os campos de texto sem as fotos,
+                // para que o que o usuário digitou nunca se perca.
+                const data = this.getFormData();
+                const textOnly = Object.assign({}, data, {
+                    sidePhotos: {},
+                    panelPhotos: {},
+                    extraPhotos: [],
+                    docProprietarioPhoto: null,
+                    _fotosOmitidas: true
+                });
+                localStorage.setItem(this.DRAFT_KEY, JSON.stringify(textOnly));
+            } catch (_) { /* sem espaco nenhum */ }
+            if (!this._quotaWarned) {
+                this._quotaWarned = true;
+                this.showMessage('Espaço de armazenamento cheio: as fotos não podem ser salvas no rascunho. Remova fotos antigas para liberar espaço.', 'error');
+            }
+        }
     }
 
     loadDraft() {
